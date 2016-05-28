@@ -60,3 +60,37 @@
           socket = io "http://127.0.0.1:#{port}"
           socket.on 'completed', ->
             done()
+
+
+    describe '@browser', ->
+
+      app = server = null
+      port = 3212
+
+      before (done) ->
+        @timeout 10*1000
+
+        Zappa = require 'zappajs'
+
+        {app,server} = Zappa port, ->
+          @with require '..'
+          @browser '/app.js', ->
+            window.ready = 42
+
+        server.on 'listening', ->
+          setTimeout (-> done()), 8*1000
+
+      after ->
+        server.close()
+
+      jsdom = require 'jsdom'
+
+      it 'should execute', (done) ->
+        @timeout 15*1000
+        jsdom.env
+          url: "http://127.0.0.1:#{port}/index.html"
+          scripts: ["http://127.0.0.1:#{port}/app.js"]
+          done: (err,window) ->
+            debug "JSDOM: #{err?.stack ? err}, done"
+            done() if window.ready is 42
+          virtualConsole: jsdom.createVirtualConsole().sendTo(console)
